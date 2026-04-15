@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Dreamweaver — Rainforest Journey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d1f0a;font-family:'Cormorant Garamond',serif}
+#app{width:100%;height:100%;position:relative}
+#startScreen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;background:radial-gradient(ellipse at center,#1a2d17 0%,#0d1f0a 70%);transition:opacity 1.5s ease}
+#startScreen.hidden{opacity:0;pointer-events:none}
+#startScreen h1{font-size:clamp(2rem,6vw,4rem);font-weight:300;color:#c5f0d4;letter-spacing:0.15em;margin-bottom:0.3em;text-shadow:0 0 40px rgba(140,255,180,0.3)}
+#startScreen p{font-size:clamp(0.9rem,2.5vw,1.2rem);color:rgba(160,220,180,0.7);font-style:italic;margin-bottom:2em;letter-spacing:0.1em}
+#startBtn{background:none;border:1px solid rgba(140,255,180,0.3);color:#c5f0d4;font-family:'Cormorant Garamond',serif;font-size:clamp(1rem,3vw,1.3rem);padding:0.8em 2.5em;border-radius:50px;cursor:pointer;letter-spacing:0.15em;transition:all 0.5s ease;backdrop-filter:blur(10px)}
+#startBtn:hover{border-color:rgba(140,255,180,0.6);background:rgba(140,255,180,0.1);box-shadow:0 0 30px rgba(140,255,180,0.2)}
+#sessionScreen{position:absolute;inset:0;opacity:0;transition:opacity 2s ease}
+#sessionScreen.active{opacity:1}
+canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+#bgCanvas{z-index:1}
+#lotusCanvas{z-index:2}
+#particleCanvas{z-index:3}
+#subtitleBox{position:absolute;bottom:15%;left:50%;transform:translateX(-50%);z-index:10;text-align:center;width:85%;max-width:600px;pointer-events:none}
+#subtitleText{font-size:clamp(1rem,3vw,1.5rem);font-weight:300;color:rgba(197,240,212,0.9);font-style:italic;line-height:1.8;letter-spacing:0.08em;text-shadow:0 0 20px rgba(100,200,140,0.4);opacity:0;transition:opacity 1.5s ease}
+#subtitleText.visible{opacity:1}
+#controls{position:absolute;bottom:3%;left:50%;transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:20px;opacity:0.6;transition:opacity 0.5s}
+#controls:hover{opacity:1}
+.ctrl-btn{background:none;border:1px solid rgba(140,255,180,0.25);color:rgba(197,240,212,0.7);font-family:'Cormorant Garamond',serif;font-size:0.85rem;padding:0.4em 1.2em;border-radius:20px;cursor:pointer;letter-spacing:0.1em;transition:all 0.3s}
+.ctrl-btn:hover{border-color:rgba(140,255,180,0.5);color:#c5f0d4}
+.ctrl-btn.active{background:rgba(140,255,180,0.15);border-color:rgba(140,255,180,0.5)}
+#volSlider,#restartSlider{-webkit-appearance:none;width:80px;height:2px;background:rgba(140,255,180,0.3);border-radius:2px;outline:none}
+#volSlider::-webkit-slider-thumb,#restartSlider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:rgba(197,240,212,0.7);cursor:pointer}
+#volLabel,#restartLabel{font-size:0.75rem;color:rgba(160,220,180,0.5);letter-spacing:0.1em;display:flex;align-items:center;gap:8px}
+#dimOverlay{position:absolute;inset:0;background:#0d1f0a;opacity:0;z-index:5;pointer-events:none;transition:opacity 3s ease}
+#loadingMsg{position:absolute;bottom:8%;left:50%;transform:translateX(-50%);z-index:15;color:rgba(160,220,180,0.5);font-size:0.85rem;font-style:italic;letter-spacing:0.1em;opacity:0;transition:opacity 1s}
+#loadingMsg.visible{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="startScreen">
+    <h1 style="text-align:center;letter-spacing:0.25em;">Dreamweaver</h1>
+    <p style="text-align:center;font-size:clamp(1rem,3vw,1.5rem);color:rgba(197,240,212,0.8);letter-spacing:0.3em;font-style:italic;margin-top:0.1em;margin-bottom:0.5em;">Calm and Relax</p>
+    <div style="width:50px;height:1px;background:rgba(140,255,180,0.35);margin:0 auto 1.8em;"></div>
+    <div style="color: rgba(160,220,180,0.6); font-size: clamp(0.8rem,2vw,1rem); margin-bottom: 1.5em; font-style: italic; line-height: 1.6; text-align:center;">
+      🌿 A 20-minute guided journey through nature<br>
+      🌸 Lotus breathing and rainforest sounds<br>
+      💚 Find peace in the heart of the forest
+    </div>
+    <button id="startBtn">Enter the Forest</button>
+  </div>
+  <div id="sessionScreen">
+    <canvas id="bgCanvas"></canvas>
+    <canvas id="lotusCanvas"></canvas>
+    <canvas id="particleCanvas"></canvas>
+    <div id="dimOverlay"></div>
+    <div id="subtitleBox">
+      <div id="subtitleText"></div>
+    </div>
+    <div id="loadingMsg"></div>
+    <div id="controls">
+      <button class="ctrl-btn" id="pauseBtn">Pause</button>
+      <label id="volLabel">Volume
+        <input type="range" id="volSlider" min="0" max="100" value="70">
+      </label>
+      <label id="restartLabel">Restart
+        <input type="range" id="restartSlider" min="0" max="100" value="0">
+      </label>
+    </div>
+  </div>
+</div>
+<script>
+// Updated script for rainforest theme
+const LINES = [
+  "Welcome… to the rainforest sanctuary…",
+  "Close your eyes… and take a slow… deep breath… like a lotus petal opening.",
+  "Hold it gently… and now… release… letting the forest… embrace you.",
+  "You're safe here… surrounded by ancient trees… nowhere to be… just this moment.",
+  "Let the weight of the day… dissolve… like morning mist… fading in dappled light.",
+  "With each breath… you're sinking… deeper into nature's embrace… into softness.",
+  "Now bring your attention… to your forehead… Feel it… smooth… like still water.",
+  "Let your eyes grow heavy… so heavy… like leaves… gently closing.",
+  "Your jaw softens… your lips part gently… all the tension… melting into earth.",
+  "Feel a warm wave… of relaxation… flowing down through your neck… your shoulders… dropping… releasing like branches in the breeze.",
+  "Your arms grow heavy… and warm… your hands… open and soft… fingers like tender shoots… uncurling.",
+  "This warmth spreads… through your chest… your belly softens… each breath… draws you deeper into the forest.",
+  "Down through your hips… your legs growing heavy… pleasantly heavy… rooting into the earth.",
+  "All the way down… to your toes… a gentle tingling… as every last bit of tension… dissolves into the soil.",
+  "Now imagine… you're walking… on a path of soft moss… through the most beautiful rainforest.",
+  "With each step forward… you drift… twice as deep… into perfect harmony with nature.",
+  "Ten… stepping deeper… into emerald shadows.",
+  "Nine… the air is warm… and humid… filled with life.",
+  "Eight… every muscle… letting go… like vines unwinding.",
+  "Seven… you're floating now… weightless… carried by forest mist.",
+  "Six… the world outside… grows quiet… only nature's whispers remain.",
+  "Five… halfway there… so deeply… connected to the earth.",
+  "Four… beautiful peace… washing through you like a gentle stream.",
+  "Three… almost there… drifting… flowing with the forest rhythm.",
+  "Two… so deep… so calm… like a hidden lagoon.",
+  "One… you've arrived… in the most sacred clearing… you've ever known.",
+  "You find yourself… beside a crystal clear pool… lotus flowers floating… in perfect stillness.",
+  "Soft rain drops… kiss your skin… their rhythm… ancient… and hypnotic.",
+  "Tropical birds… sing lullabies… high in the canopy… their melodies… weaving dreams.",
+  "The air smells… of rich earth… and blooming jasmine… every breath… fills you with life force.",
+  "Warm moss beneath you… cradling you… as if the forest itself… is holding you in love.",
+  "Sunbeams filter through… the emerald canopy… like golden threads… weaving peace.",
+  "You are one with this place now… there's nothing left… to think about… only being.",
+  "My voice is becoming softer… more distant… like wind… through the leaves.",
+  "You don't need to listen… anymore… just let the forest sounds… wash over you.",
+  "Drifting… floating… dissolving… into green light and mist.",
+  "Sleep comes naturally here… wrapping around you… like jungle vines… soft and protective.",
+  "Let go now… completely… you are nature… you are peace… you are home in the forest.",
+  "Sleep… in nature's embrace."
+];
+
+const PHASES = [
+  [0, 0, 4000],
+  [1, 13, 5000],
+  [14, 15, 6000],
+  [16, 25, 7000],
+  [26, 31, 8000],
+  [32, 38, 10000]
+];
+
+const TOTAL_LINES = 39;
+
+// ==================== AUDIO ENGINE ====================
+class AudioEngine {
+  constructor() {
+    this.ctx = null;
+    this.masterGain = null;
+    this.ambientGain = null;
+    this.voiceGain = null;
+    this.volume = 0.7;
+    this.paused = false;
+    this.audioBuffers = new Array(TOTAL_LINES).fill(null);
+    this.ambientBuffer = null;
+    this.ambientSource = null;
+    this.currentSource = null;
+    this._pendingResolve = null;
+  }
+
+  init() {
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.gain.value = this.volume;
+    this.masterGain.connect(this.ctx.destination);
+
+    this.ambientGain = this.ctx.createGain();
+    this.ambientGain.gain.value = 0;
+    this.ambientGain.connect(this.masterGain);
+
+    this.voiceGain = this.ctx.createGain();
+    this.voiceGain.gain.value = 1.0;
+    this.voiceGain.connect(this.masterGain);
+  }
+
+  async loadAudio(url) {
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    return await this.ctx.decodeAudioData(arrayBuffer);
+  }
+
+  async preloadLine(index) {
+    if (this.audioBuffers[index]) return;
+    const num = String(index).padStart(2, '0');
+    try {
+      this.audioBuffers[index] = await this.loadAudio('audio/rainforest_line_' + num + '.mp3');
+    } catch(e) {
+      console.warn('Failed to preload line', index, e);
+    }
+  }
+
+  async preloadAmbient() {
+    try {
+      this.ambientBuffer = await this.loadAudio('audio/rainforest_ambient.mp3');
+    } catch(e) {
+      console.warn('Failed to load rainforest ambient', e);
+    }
+  }
+
+  startAmbient() {
+    if (!this.ambientBuffer) return;
+    this.ambientSource = this.ctx.createBufferSource();
+    this.ambientSource.buffer = this.ambientBuffer;
+    this.ambientSource.loop = true;
+    this.ambientSource.connect(this.ambientGain);
+    this.ambientSource.start();
+    this.ambientGain.gain.setValueAtTime(0, this.ctx.currentTime);
+    this.ambientGain.gain.linearRampToValueAtTime(0.4, this.ctx.currentTime + 5);
+  }
+
+  setVolume(v) {
+    this.volume = v;
+    if (this.masterGain) this.masterGain.gain.setValueAtTime(v, this.ctx.currentTime);
+  }
+
+  playLine(lineIndex) {
+    return new Promise(async (resolve) => {
+      if (!this.audioBuffers[lineIndex]) {
+        await this.preloadLine(lineIndex);
+      }
+      const buffer = this.audioBuffers[lineIndex];
+      if (!buffer) { resolve(); return; }
+
+      if (this.ambientGain) {
+        this.ambientGain.gain.linearRampToValueAtTime(0.2, this.ctx.currentTime + 0.5);
+      }
+
+      const source = this.ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(this.voiceGain);
+      this.currentSource = source;
+
+      source.onended = () => {
+        this.currentSource = null;
+        if (this.ambientGain) {
+          this.ambientGain.gain.linearRampToValueAtTime(0.4, this.ctx.currentTime + 1);
+        }
+        resolve();
+      };
+
+      if (this.paused) {
+        this._pendingResolve = () => { source.start(); };
+      } else {
+        source.start();
+      }
+
+      if (lineIndex + 1 < TOTAL_LINES) this.preloadLine(lineIndex + 1);
+      if (lineIndex + 2 < TOTAL_LINES) this.preloadLine(lineIndex + 2);
+    });
+  }
+
+  pause() {
+    this.paused = true;
+    if (this.ctx && this.ctx.state === 'running') this.ctx.suspend();
+  }
+
+  resume() {
+    this.paused = false;
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
+  }
+}
+
+// ==================== VISUAL ENGINE ====================
+class VisualEngine {
+  constructor() {
+    this.bgCtx = null;
+    this.lotusCtx = null;
+    this.particleCtx = null;
+    this.particles = [];
+    this.breathPhase = 0;
+    this.breathSpeed = 0.008;
+    this.running = false;
+    this.w = 0;
+    this.h = 0;
+  }
+
+  init() {
+    this.bgCtx = document.getElementById('bgCanvas').getContext('2d');
+    this.lotusCtx = document.getElementById('lotusCanvas').getContext('2d');
+    this.particleCtx = document.getElementById('particleCanvas').getContext('2d');
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+    for (let i = 0; i < 60; i++) {
+      this.particles.push({
+        x: Math.random() * this.w, y: Math.random() * this.h,
+        r: Math.random() * 2 + 1,
+        vx: (Math.random()-0.5) * 0.3, vy: (Math.random()-0.5) * 0.2 - 0.1,
+        phase: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.01 + 0.005,
+        hue: 120 + Math.random() * 60
+      });
+    }
+  }
+
+  resize() {
+    const dpr = window.devicePixelRatio || 1;
+    this.w = window.innerWidth;
+    this.h = window.innerHeight;
+    ['bgCanvas','lotusCanvas','particleCanvas'].forEach(id => {
+      const c = document.getElementById(id);
+      c.width = this.w * dpr;
+      c.height = this.h * dpr;
+      c.getContext('2d').scale(dpr, dpr);
+    });
+  }
+
+  start() { this.running = true; this.animate(); }
+  stop() { this.running = false; }
+
+  animate() {
+    if (!this.running) return;
+    this.drawBackground();
+    this.drawLotus();
+    this.drawParticles();
+    requestAnimationFrame(() => this.animate());
+  }
+
+  drawBackground() {
+    const ctx = this.bgCtx;
+    const g = ctx.createRadialGradient(this.w/2, this.h/2, 0, this.w/2, this.h/2, this.w*0.7);
+    g.addColorStop(0, '#1a2d17');
+    g.addColorStop(0.5, '#0f2212');
+    g.addColorStop(1, '#0d1f0a');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, this.w, this.h);
+  }
+
+  drawLotus() {
+    const ctx = this.lotusCtx;
+    ctx.clearRect(0, 0, this.w, this.h);
+    const cx = this.w / 2, cy = this.h * 0.38;
+    this.breathPhase += this.breathSpeed;
+    const breathScale = 0.85 + 0.15 * Math.sin(this.breathPhase);
+    const baseR = Math.min(this.w, this.h) * 0.18 * breathScale;
+    const alpha = 0.15 + 0.1 * Math.sin(this.breathPhase);
+
+    // Lotus center glow
+    const glow = ctx.createRadialGradient(cx, cy, baseR*0.2, cx, cy, baseR*1.2);
+    glow.addColorStop(0, 'rgba(100,200,140,'+alpha*0.7+')');
+    glow.addColorStop(1, 'rgba(100,200,140,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseR*1.2, 0, Math.PI*2);
+    ctx.fill();
+
+    // Draw lotus petals in layers
+    for (let layer = 0; layer < 4; layer++) {
+      const layerR = baseR * (0.4 + layer * 0.2);
+      const petals = 8 + layer * 4;
+      const rot = this.breathPhase * 0.15 * (layer%2===0?1:-1);
+      
+      for (let p = 0; p < petals; p++) {
+        const angle = (p/petals)*Math.PI*2 + rot;
+        const petalAlpha = alpha * (1 - layer * 0.2);
+        
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        
+        // Petal shape
+        ctx.fillStyle = 'rgba(140,255,180,'+petalAlpha*0.6+')';
+        ctx.strokeStyle = 'rgba(197,240,212,'+petalAlpha*0.8+')';
+        ctx.lineWidth = 1;
+        
+        ctx.beginPath();
+        ctx.ellipse(0, -layerR, layerR*0.15, layerR*0.4, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.restore();
+      }
+    }
+
+    // Lotus center
+    ctx.fillStyle = 'rgba(255,220,140,'+alpha*0.8+')';
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseR*0.12, 0, Math.PI*2);
+    ctx.fill();
+
+    // Center dots
+    for (let i = 0; i < 6; i++) {
+      const a = (i/6)*Math.PI*2 + this.breathPhase*0.1;
+      const r = baseR*0.06;
+      ctx.fillStyle = 'rgba(180,255,140,'+alpha*0.9+')';
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(a)*r, cy + Math.sin(a)*r, 1, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  drawParticles() {
+    const ctx = this.particleCtx;
+    ctx.clearRect(0, 0, this.w, this.h);
+    this.particles.forEach(p => {
+      p.phase += p.speed;
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < -10) p.x = this.w+10;
+      if (p.x > this.w+10) p.x = -10;
+      if (p.y < -10) p.y = this.h+10;
+      if (p.y > this.h+10) p.y = -10;
+      const glow = 0.3 + 0.7 * Math.sin(p.phase);
+      ctx.fillStyle = 'hsla('+p.hue+',60%,75%,'+glow*0.6+')';
+      ctx.shadowColor = 'hsla('+p.hue+',70%,70%,'+glow*0.4+')';
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r*(0.8+0.4*Math.sin(p.phase)), 0, Math.PI*2);
+      ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+  }
+
+  setDim(level) {
+    document.getElementById('dimOverlay').style.opacity = level;
+  }
+}
+
+// ==================== SESSION CONTROLLER ====================
+class SessionController {
+  constructor(audio, visuals) {
+    this.audio = audio;
+    this.visuals = visuals;
+    this.running = false;
+    this.paused = false;
+    this.pausePromiseResolve = null;
+    this._timer = null;
+  }
+
+  async start() {
+    this.running = true;
+    this.audio.init();
+    this.visuals.init();
+    this.visuals.start();
+
+    try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch(e) {}
+
+    const loadMsg = document.getElementById('loadingMsg');
+    loadMsg.textContent = 'Preparing your forest journey…';
+    loadMsg.classList.add('visible');
+
+    await Promise.all([
+      this.audio.preloadAmbient(),
+      this.audio.preloadLine(0),
+      this.audio.preloadLine(1),
+      this.audio.preloadLine(2),
+      this.audio.preloadLine(3),
+      this.audio.preloadLine(4)
+    ]);
+
+    loadMsg.classList.remove('visible');
+    this.audio.startAmbient();
+    await this.sleep(3000);
+
+    for (let pi = 0; pi < PHASES.length && this.running; pi++) {
+      const [start, end, gap] = PHASES[pi];
+      const dimTarget = Math.max(0, (pi - 1)) * 0.12;
+      this.visuals.setDim(dimTarget);
+      this.visuals.breathSpeed = Math.max(0.004, 0.008 - Math.max(0, pi-1) * 0.001);
+
+      for (let li = start; li <= end && this.running; li++) {
+        if (this.paused) await new Promise(r => this.pausePromiseResolve = r);
+
+        const sub = document.getElementById('subtitleText');
+        sub.textContent = LINES[li];
+        sub.classList.add('visible');
+
+        try { await this.audio.playLine(li); } catch(e) { console.warn('Line', li, e); }
+
+        await this.sleep(1500);
+        sub.classList.remove('visible');
+        await this.sleep(gap);
+      }
+    }
+
+    this.visuals.setDim(0.75);
+    document.getElementById('subtitleText').textContent = '';
+    document.getElementById('subtitleText').classList.remove('visible');
+  }
+
+  sleep(ms) {
+    return new Promise(r => { this._timer = setTimeout(r, ms); });
+  }
+
+  togglePause() {
+    if (this.paused) {
+      this.paused = false;
+      this.audio.resume();
+      if (this.pausePromiseResolve) { this.pausePromiseResolve(); this.pausePromiseResolve = null; }
+      document.getElementById('pauseBtn').textContent = 'Pause';
+    } else {
+      this.paused = true;
+      this.audio.pause();
+      document.getElementById('pauseBtn').textContent = 'Resume';
+    }
+  }
+}
+
+// ==================== INIT ====================
+const audio = new AudioEngine();
+const visuals = new VisualEngine();
+const session = new SessionController(audio, visuals);
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('sessionScreen').classList.add('active');
+  setTimeout(() => session.start(), 500);
+});
+
+document.getElementById('pauseBtn').addEventListener('click', () => session.togglePause());
+
+document.getElementById('volSlider').addEventListener('input', (e) => {
+  audio.setVolume(e.target.value / 100);
+});
+
+document.getElementById('restartSlider').addEventListener('input', (e) => {
+  const position = parseInt(e.target.value);
+  if (position > 0) {
+    audio.currentLine = 0;
+    audio.stop();
+    session.reset();
+    session.start();
+    setTimeout(() => {
+      e.target.value = 0;
+    }, 100);
+  }
+});
+</script>
+</body>
+</html>
